@@ -21,7 +21,6 @@ class MyVisualFeatureEncoder(nn.Module):
         self,
         visual_feats
     ):
-        # 去掉了没用的坐标信息
         return self.dropout(self.visn_layer_norm(self.visn_fc(visual_feats)))
 
 class MyViltEmbedding(nn.Module):
@@ -60,7 +59,7 @@ class MyViltModel(ViltPreTrainedModel):
     def __init__(self,config):
         super().__init__(config)
         self.config = config
-        self.embeddings = MyViltEmbedding(config,feat_dim=2048) # NOTE 这里的feat_dim写死
+        self.embeddings = MyViltEmbedding(config,feat_dim=2048)
         self.encoder = ViltEncoder(config)
         self.pooler = ViltPooler(config)
         self.layernorm = nn.LayerNorm(config.hidden_size , eps = config.layer_norm_eps)
@@ -75,7 +74,6 @@ class MyViltModel(ViltPreTrainedModel):
         feats ,                 # shape:[batch_size,num_channels,height,width]
     ):  
         input_shape , device = input_ids.size() , input_ids.device
-        # 抽取特征(feats和txt)
         output_embeddings , output_masks = self.embeddings(
             input_ids = input_ids,
             attention_mask = attention_mask,
@@ -111,8 +109,8 @@ class MyViltForPretrain(ViltPreTrainedModel):
         attention_mask,
         token_type_ids,
         feats,
-        labels,         #  用于MLM
-        matchs,         #  用于图文匹配
+        labels,         
+        matchs,         
     ):
         device = input_ids.device
         output = self.vilt(
@@ -124,11 +122,9 @@ class MyViltForPretrain(ViltPreTrainedModel):
         sequence_output , pooled_output = output[:2]
         text_seq_len = input_ids.shape[1]
         text_features , _ = (sequence_output[:, :text_seq_len], sequence_output[:, text_seq_len:])
-        # 图文匹配任务
         match_logits = self.seq_relationship(pooled_output)
         match_loss = self.loss_fct(match_logits.view(-1,2),matchs.view(-1))
 
-        # MLM任务
         mlm_logits = self.mlm_score(text_features)
         pred_match_txt = mlm_logits[matchs.view(-1) == 1]
         true_match_txt = labels[matchs.view(-1)==1]
@@ -137,7 +133,6 @@ class MyViltForPretrain(ViltPreTrainedModel):
         else :
             masked_loss = torch.tensor(0.0).to(device=device)
         
-        # 计算正确率
         _ ,idx = match_logits.max(1)
         right_match = (matchs.squeeze(1) == idx).sum().item()
         

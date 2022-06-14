@@ -36,23 +36,23 @@ def train(opt):
     seed_everything(opt.seed)
     
     tokenizer = BertTokenizer.from_pretrained(pretrained_model_name_or_path= opt.tokenizer_path)
-    # 加载颜色词
+  
     color_set = set()
     with open('./color.txt','r') as file:
         lines = file.readlines()
     for line in lines:
         color_set.add(line[:-1])
     
-    # 加载所有需要匹配的类别
+  
     with open(os.path.join('./data' ,'sort_label_list.txt'), 'r') as f:
         label_list = [label for label in f.read().strip().split()]
-    # 标签转化为对应id
+   
     label2id = {key:i for i, key in enumerate(label_list)}
 
-    # 获取属性的所有值
+   
     with open(os.path.join('./data','attr_to_attrvals.json'), 'r') as f:
         key_attr_values = json.loads(f.read())
-    # 加载数据
+   
     since = time.time()
     if opt.mode == 'train':
         coarse_train_path = os.path.join(opt.data_root, 'coarse_to_fine_data.json')
@@ -61,7 +61,7 @@ def train(opt):
         coarse_train_path = os.path.join(opt.data_root,'fine_data_sample.json')
         fine_train_path = os.path.join(opt.data_root,'fine_data_sample.json')
     
-    # 读取fine数据
+    
     with open(fine_train_path, 'r') as f:
         fine_data = json.loads(f.read())
     fine_texts, fine_img_features, fine_labels, fine_label_masks, fine_key_attrs =\
@@ -139,7 +139,7 @@ def train(opt):
     print('unexpected_keys ',keys[1])
     myvilbert.to(device)
 
-    # pretrain模块用小学习率，cls模块用大学习率
+   
     pretrain_module = list(myvilbert.myvilbert.named_parameters())
     finetune_module = list(myvilbert.cls.named_parameters())
     print('加载模型 %s'%(opt.pretrain_model_path))
@@ -175,7 +175,7 @@ def train(opt):
             optim.step()
             scheduler.step()
 
-        # 评估
+       
         N_img_text , M_img_text = 0, 0
         N_attr , M_attr = 0 , 0
         eval_losses , eval_img_text_losses , eval_attr_losses = [] , [] , []
@@ -198,7 +198,7 @@ def train(opt):
                 )   
                 img_txt_logit , attr_logit = output[:,0] , output[:,1:]
                 true_img_text , true_attr = labels[:,0] , labels[:,1:]
-                # 计算loss
+               
                 img_text_loss = criterion(img_txt_logit ,true_img_text )
                 attr_loss = criterion(attr_logit ,true_attr )
                 test_loss = img_text_loss + attr_loss
@@ -206,12 +206,12 @@ def train(opt):
                 eval_img_text_losses.append(img_text_loss)
                 eval_attr_losses.append(attr_loss)
 
-                # 统计图文匹配的数量
+             
                 pred_img_text = torch.zeros_like(output[:,0])
                 pred_img_text[output[:,0] >= 0.5] =1
                 N_img_text += torch.sum(pred_img_text == true_img_text).cpu().numpy().item()
                 M_img_text += torch.sum(torch.ones_like(true_img_text)).cpu().numpy().item()
-                # 统计属性匹配数量
+                
                 pred_attr =  torch.zeros_like(output[:,1:])
                 pred_attr[output[:,1:] >= 0.5] = 1
                 pred_attr = pred_attr[label_masks[:, 1:] == 1]
@@ -229,10 +229,10 @@ def train(opt):
             attr_scores = 0.5 * N_attr / M_attr
             total_scores = img_text_scores + attr_scores
         is_save_model = 0
-        if total_scores > best_score :   # 按照最高分数进行存储
+        if total_scores > best_score :  
             best_score , is_save_model = total_scores , 1
             save_model(myvilbert,tokenizer , opt ,model_type = 'score')
-        if eval_loss < min_loss:    # 按照最小loss的进行存储
+        if eval_loss < min_loss:   
             min_loss , is_save_model = eval_loss , 1 
             save_model(myvilbert , tokenizer , opt ,model_type = 'loss')
         using_time = (time.time()-since)/60
@@ -240,7 +240,7 @@ def train(opt):
             %(epoch , using_time , total_scores , img_text_scores , attr_scores ,eval_loss , eval_img_text_loss ,eval_attr_loss   , is_save_model))
 
         record_epoch_arr.append([ total_scores , img_text_scores , attr_scores ,eval_loss , eval_img_text_loss ,eval_attr_loss])
-    # 记录最终结果
+    
     print('#'*25,' 训练完毕' , '#'*25)
     strings = time.strftime('%Y,%m,%d,%H,%M,%S')
     t = strings.split(',')
@@ -258,7 +258,7 @@ def train(opt):
 
 
 def write_opt(opt):
-    # 写入opt文件
+
     params = [attr for attr in dir(opt) if not attr.startswith('_')]
     content = ''
     for param in params:
@@ -291,8 +291,8 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed',type = int, default=25, help='random seed')
     parser.add_argument('--mode',type=str,default='train',help='train:正式训练; test:代码测试阶段')
-    parser.add_argument('--tokenizer_path',type=str,default = './vilbert_model/pretrain/' ,help='tokenizer path') # Chinese-BERT-WWM
-    parser.add_argument('--pretrain_model_path',type=str,default = './vilbert_model/pretrain/' ,help='pretrain model path') # Chinese-BERT-WWM
+    parser.add_argument('--tokenizer_path',type=str,default = './vilbert_model/pretrain/' ,help='tokenizer path') 
+    parser.add_argument('--pretrain_model_path',type=str,default = './vilbert_model/pretrain/' ,help='pretrain model path') 
     parser.add_argument('--data_root',type = str , default='./data/',help='数据根路径')
     parser.add_argument('--output_root',type = str , default='./vilbert_model/finetune/',help = '输出根路径' )
     parser.add_argument('--num_workers',type =int,default=16)
@@ -301,7 +301,7 @@ def parse_opt():
     parser.add_argument('--lr',type=float,default=8e-5) #TODO 还在搜索，感觉可以更大
     parser.add_argument('--small_lr',type=float,default=2e-5)   #TODO 还在搜索，感觉可以更大
     parser.add_argument('--batch_size',type = int,default=640)
-    parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight_decay')    # 没有效果
+    parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight_decay')   
     parser.add_argument('--gpu',type = int, default=1,help='GPU')
     parser.add_argument('--warmup_ratio', type=float, default=0.1, help='warmup_ratio')
     opt = parser.parse_args()

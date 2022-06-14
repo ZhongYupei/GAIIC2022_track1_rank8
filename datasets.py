@@ -52,11 +52,11 @@ class PreDataset_v2(torch.utils.data.Dataset):
         labels ,
         key_attrs , 
         key_attr_values,
-        p1 = 0.5 ,  # 无关键属性。 用新的title 或者 保留用老的title
-        p2 = 0.3 ,   # 有关键属性的数据。  保持不变 发生变化
-        p3 = 0.5 ,   # 改变title的概率，直接改变整个标题，否则在原来的标题上作修改
-        p4 = 0.95 ,  # 改变文本中的属性文字 / 改变文本中的‘非属性’文字
-        p5 = 0.5 ,   # 随机重组title
+        p1 = 0.5 ,  
+        p2 = 0.3 ,   
+        p3 = 0.5 ,
+        p4 = 0.95 ,  
+        p5 = 0.5 ,   
         max_len = 35,
         color_set = None,
     ):
@@ -89,7 +89,7 @@ class PreDataset_v2(torch.utils.data.Dataset):
         visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float)
         key_attrs = deepcopy(self.key_attrs[idx])
         if len(key_attrs) <  1:
-            if random.random() < self.p1 :  # 用新的title
+            if random.random() < self.p1 :  
                 new_idx = random.choice(range(len(self.labels)))
                 while new_idx == idx:
                     new_idx = random.choice(range(len(self.labels)))
@@ -98,18 +98,18 @@ class PreDataset_v2(torch.utils.data.Dataset):
                 sentence_image_labels = torch.zeros(visual_embeds.shape[:-1], dtype=torch.long)
                 sentence_image_labels[0] = 1 if len(new_text_set.intersection(old_text_set)) == len(new_text_set) else 0
                 text = deepcopy(self.texts[new_idx])
-            else:       # 保持原来的title
+            else:       
                 text = deepcopy(self.texts[idx])
                 sentence_image_labels = torch.full(visual_embeds.shape[:-1], self.labels[idx][0],
                                                    dtype=torch.long)
         else:
-            # 针对有关键属性的样本
-            if random.random() < self.p2:   # 保持不变,用老的title
+        
+            if random.random() < self.p2: 
                 text = deepcopy(self.texts[idx])
                 sentence_image_labels = torch.full(visual_embeds.shape[:-1], self.labels[idx][0],
                                                    dtype=torch.long)
             else:
-                if random.random() < self.p3: # 替换整个标题
+                if random.random() < self.p3: 
                     new_idx = random.choice(range(len(self.labels)))
                     while new_idx == idx :
                         new_idx = random.choice(range(len(self.labels))) 
@@ -119,7 +119,7 @@ class PreDataset_v2(torch.utils.data.Dataset):
                     sentence_image_labels[0] = 1 if len(new_text_set.intersection(old_text_set)) == len(new_text_set) else 0 
                     text = deepcopy(self.texts[new_idx])
                 else:
-                    if random.random() < self.p4:       # 改变title中的‘属性’文字
+                    if random.random() < self.p4:      
                         random_num = random.choice(list(range(len(key_attrs))))
                         randim_idx_list = list(range(len(key_attrs)))
                         random.shuffle(randim_idx_list)
@@ -131,14 +131,14 @@ class PreDataset_v2(torch.utils.data.Dataset):
                             value = key_attrs[random_key]
                             random_value = random.choice(list(self.attrval_sameattr_values[random_key][value]))
                             text =  text.replace(value,random_value)
-                        sentence_image_labels = torch.zeros(visual_embeds.shape[:-1], dtype=torch.long)   # 替换了同类型不同属性值，所以一定是不匹配的
-                    else:    # 改变title中的‘非属性’文字
+                        sentence_image_labels = torch.zeros(visual_embeds.shape[:-1], dtype=torch.long)   
+                    else:    
                         old_text = deepcopy(self.texts[idx])
                         old_text_set = set(list(jieba.cut(old_text,cut_all=False)))
-                        hit_set = old_text_set.intersection(self.color_set) # 存在的颜色词
+                        hit_set = old_text_set.intersection(self.color_set) 
                         if hit_set is not  None:
-                            select_set = self.color_set - hit_set       # 从剩余当中的颜色词进行选择
-                            for hit in hit_set :    # 一个title中可能存在多个颜色词
+                            select_set = self.color_set - hit_set      
+                            for hit in hit_set :   
                                 select_color = random.choice(list(select_set))
                                 hit_word_set , select_word_set = set([txt for txt in hit]) , set([txt for txt in select_color])
                                 is_overlap = len(hit_word_set.intersection(select_word_set) - {'色'}) >= 1
@@ -152,11 +152,11 @@ class PreDataset_v2(torch.utils.data.Dataset):
                             text = deepcopy(old_text)
                             sentence_image_labels = torch.zeros(visual_embeds.shape[:-1], dtype=torch.long)
                         else:
-                            # 表示没有颜色词，什么修改都没有做
+                            
                             text = deepcopy(self.texts[idx])
                             sentence_image_labels = torch.full(visual_embeds.shape[:-1], self.labels[idx][0],
                                                     dtype=torch.long)    
-        not_shuffle = '浅' in text or '深' in text or '拼' in text or '撞' in text # 如果有这三个字则不进行打乱
+        not_shuffle = '浅' in text or '深' in text or '拼' in text or '撞' in text
         if not not_shuffle and random.random() < self.p5:
             text_arr = list(jieba.cut(text,cut_all=False))    
             random.shuffle(text_arr)
@@ -181,17 +181,17 @@ class MatchDataset_v2(torch.utils.data.Dataset):
         key_attrs,
         key_attr_values,
         label2id,
-        max_len =35,        # 文本的最大长度
-        p1 = 0.3 ,          # 产生负样本的操作(小于p1保持正样本；大于p1产生负样本)
-        p2 = 0.5 ,          # 替换title(小于p2替换整个文字；大于p2部替换文本中的部分文字)
-        p3 = 0.95 ,          # 改变‘属性’/‘非属性’文本(小于p3改变‘属性’文本；大于p3改变‘非属性’文本)
-        p4 = -1 ,          # 更改非属性字： 更改性别 # comment 目前设置一定不会更改
-        p5 = 1.0 ,          # 更改非属性字： 更改颜色 # comment 有0.05的概率会发生更改
-        p6 = 0.2 ,          # 文本打乱
-        p8 = 0.5,           # 对无关键属性的负样本增强
-        p7 = 0.7,           # feats增强
-        shuffle_rate = 0.1,  # feats有‘多少’未知进行调换
-        color_set = None,    # 颜色集合
+        max_len =35,       
+        p1 = 0.3 ,         
+        p2 = 0.5 ,          
+        p3 = 0.95 ,         
+        p4 = -1 ,          
+        p5 = 1.0 ,          
+        p6 = 0.2 ,        
+        p8 = 0.5,         
+        p7 = 0.7,          
+        shuffle_rate = 0.1, 
+        color_set = None,   
     ):
         self.tokenizer = tokenizer
         self.texts = texts
@@ -203,7 +203,7 @@ class MatchDataset_v2(torch.utils.data.Dataset):
         self.max_len = max_len + 2
         self.attrval_sameattr_values = get_sameattr_values(key_attr_values)
         self.label2id = label2id
-        # 相同含义的属性值
+        
         same_mean_attrvals = []
         for values in key_attr_values.values():
             for value in values:
@@ -224,13 +224,13 @@ class MatchDataset_v2(torch.utils.data.Dataset):
         visual_embeds = torch.tensor(self.visual_embeds[idx], dtype=torch.float32).unsqueeze(0) # shape[1,2048]
         visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float)
         # comment feats增强
-        if random.random()<self.p7: # 进行部分位置调换，【思考】减少对feats过拟合的作用
+        if random.random()<self.p7: 
             select_ids = np.random.choice([i for i in range(visual_embeds.size(1))],size=int(self.shuffle_rate * visual_embeds.size(1)) , replace=False)
             shuffle_ids = select_ids.copy()
             np.random.shuffle(shuffle_ids)
-            while (select_ids == shuffle_ids).sum() ==  len(shuffle_ids):   # 避免shuffle之后还是一样的
+            while (select_ids == shuffle_ids).sum() ==  len(shuffle_ids):  
                 np.random.shuffle(shuffle_ids)
-            visual_embeds[:,select_ids] = visual_embeds[:,shuffle_ids]      # 发生调换
+            visual_embeds[:,select_ids] = visual_embeds[:,shuffle_ids]   
 
         # comment 文本增强 
         # TODO 考虑是否要进行 '删字'
@@ -246,15 +246,15 @@ class MatchDataset_v2(torch.utils.data.Dataset):
                 new_text_set = set(list(jieba.cut(self.texts[new_idx])))
                 old_text_set = set(list(jieba.cut(self.texts[idx])))
                 labels = torch.zeros(13) 
-                labels[0] = 1 if len(new_text_set.intersection(old_text_set)) == len(new_text_set) else 0   # 表明新文本的内容都出现在旧文本中，这时候认为图文匹配
+                labels[0] = 1 if len(new_text_set.intersection(old_text_set)) == len(new_text_set) else 0   
                 text = deepcopy(self.texts[new_idx])
-            else:   # 不发生更改
+            else:  
                 text = deepcopy(self.texts[idx])
         else:
-            if random.random() < self.p1:                   # 保持正样本
+            if random.random() < self.p1:                  
                 pass
             else:# comment 0.7
-                if random.random() < self.p2:               # 替换整个titile
+                if random.random() < self.p2:             
                     new_idx = random.choice(range(len(self.labels)))
                     while new_idx == idx :
                         new_idx = random.choice(range(len(self.labels)))
@@ -278,10 +278,9 @@ class MatchDataset_v2(torch.utils.data.Dataset):
                     text = new_text
                 else:
                     # comment 0.7
-                    # 在原来的文本上进行修改
-                    # 改变‘属性’字体
+                   
                     if random.random() <= self.p3:
-                        # 改变‘属性’文字
+                        
                         text = deepcopy(self.texts[idx] )
                         random_num = random.choice(list(range(len(key_attrs))))
                         random_idx_list = list(range(len(key_attrs)))
@@ -295,17 +294,17 @@ class MatchDataset_v2(torch.utils.data.Dataset):
                             random_value = random.choice(list(self.attrval_sameattr_values[random_key][value]))
                             text = text.replace(value,random_value)
                             labels[self.label2id[random_key]]= 0
-                        labels[0] = 0   # 图文匹配为0 
+                        labels[0] = 0   
                     else:
-                        # 改变‘非属性’字体，改变颜色
+                        
                         if random.random() < self.p5:
                             # comment 更换颜色
                             old_text = deepcopy(self.texts[idx])
                             old_text_set = set(list(jieba.cut(old_text , cut_all=False)))
-                            hit_set = old_text_set.intersection(self.color_set) # 存在的颜色词
+                            hit_set = old_text_set.intersection(self.color_set) 
                             if hit_set is not None:
-                                select_set = self.color_set - hit_set   # 从剩余当中进行选择
-                                for hit in hit_set:         # 一个title中可能有多种颜色，采用循环的方式
+                                select_set = self.color_set - hit_set  
+                                for hit in hit_set:        
                                     select_color = random.choice(list(select_set))
                                     hit_word_set ,select_word_set = set([txt for txt in hit]), set([txt for txt in select_color])
                                     is_overlap = len(hit_word_set.intersection(select_word_set) - {'色'} ) >= 1
@@ -314,19 +313,18 @@ class MatchDataset_v2(torch.utils.data.Dataset):
                                         select_color = random.choice(list(select_set))
                                         hit_word_set , select_word_set = set([txt for txt in hit]), set([txt for txt in select_color])
                                         is_overlap = len(hit_word_set.intersection(select_word_set) - {'色'}) >= 1
-                                    select_set = select_set - {select_color}  # 删除已经选择的候选颜色
+                                    select_set = select_set - {select_color}  
                                     old_text = old_text.replace(hit,select_color)
                                 labels = torch.tensor(self.labels[idx], dtype=torch.float)
-                                labels[0]=0     # 更换了颜色，label为0，属性依旧匹配
+                                labels[0]=0     
                                 text = old_text
                             else:
-                                # 没有颜色词，不发生变换
+                              
                                 text = deepcopy(self.texts[idx])
 
-        not_shuffle = '浅' in text or '深' in text or '拼' in text or '撞' in text  # 如果有这三个字则不进行打乱
+        not_shuffle = '浅' in text or '深' in text or '拼' in text or '撞' in text 
         if not not_shuffle and random.random() < self.p6:
-            # 变换title的顺序
-            text_arr = list(jieba.cut(text,cut_all=False))     # 对删除了年份的文本进行裁剪
+            text_arr = list(jieba.cut(text,cut_all=False))     
             random.shuffle(text_arr)
             text = ''.join(text_arr)
         inputs = self.tokenizer(text, padding="max_length", max_length=self.max_len, truncation=True)

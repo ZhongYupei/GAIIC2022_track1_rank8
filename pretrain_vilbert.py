@@ -31,7 +31,6 @@ def seed_everything(seed):
 def train(opt):
     seed_everything(opt.seed)
 
-    # 加载颜色词
     
     color_set = set()
     with open('./color.txt','r') as file:
@@ -42,17 +41,13 @@ def train(opt):
 
     with open(os.path.join('./data' ,'sort_label_list.txt'), 'r') as f:
         label_list = [label for label in f.read().strip().split()]
-    # 获取属性的所有值
     with open(os.path.join('./data','attr_to_attrvals.json'), 'r') as f:
         key_attr_values = json.loads(f.read())
-    # 文件路径
     t1 = time.time()
     if opt.mode == 'train':
-        # 训练样本
         coarse_train_path = os.path.join(opt.data_root,'coarse_data.json')
         fine_train_path = os.path.join(opt.data_root,'fine_data.json')
     else:
-        # 测试样本
         coarse_train_path = os.path.join(opt.data_root,'fine_data_sample.json')
         fine_train_path = os.path.join(opt.data_root,'fine_data_sample.json')
     print('*'*50,' Load Data ','*'*50)
@@ -61,14 +56,12 @@ def train(opt):
         coarse_data = json.loads(f.read())
     with open(fine_train_path, 'r', encoding='utf-8') as f:
         fine_data = json.loads(f.read())
-    # 获取数据
     print('读取数据花费的时间:', time.time() - t1)
     fine_texts, fine_img_features, fine_labels = fine_data['texts'], fine_data['img_features'], fine_data['labels']
     coarse_texts, coarse_img_features, coarse_labels = coarse_data['texts'], coarse_data['img_features'], coarse_data[
         'labels']
     fine_key_attrs = fine_data['key_attrs']
     coarse_key_attrs = coarse_data['key_attrs']
-    # 对texts进行裁剪
     fine_texts = [delete_word(text) for text in fine_texts]
     coarse_texts = [delete_word(text) for text in coarse_texts]
 
@@ -77,12 +70,10 @@ def train(opt):
     data_labels = np.array(fine_labels  + coarse_labels )
     data_key_attrs = np.array(fine_key_attrs  + coarse_key_attrs )
     assert 0 <= opt.test_rate < 1
-    # 如果test_size为0，即全部数据一起训练
     if opt.test_rate == 0:
         _, test_idxs = train_test_split(range(len(data_texts)), test_size=0.3)
         train_idxs = [i for i in range(len(data_texts))]
     else:
-        # 划分训练集和测试集
         train_idxs, test_idxs = train_test_split(range(len(data_texts)), test_size=opt.test_rate)
     train_texts = data_texts[train_idxs]
     train_img_features = data_img_features[train_idxs]
@@ -94,26 +85,8 @@ def train(opt):
     test_key_attrs = data_key_attrs[test_idxs]
 
     print('构造数据集合完成。训练集合 %d 测试集合 %d'%(len(train_texts),len(test_texts)))
-    tokenizer = BertTokenizer.from_pretrained(opt.tokenizer_path)     ## WWM 掩码
-    # #  构建数据集
-    # train_dataset = PretrainDataset(
-    #     tokenizer = tokenizer,
-    #     texts = train_texts,                      
-    #     visual_embeds= train_img_features,            
-    #     labels=train_labels ,                     
-    #     key_attrs=train_key_attrs ,               
-    #     key_attr_values= key_attr_values,            
-
-    # )
-    # test_dataset = PretrainDataset(
-    #     tokenizer = tokenizer,
-    #     texts =test_texts ,                      
-    #     visual_embeds= test_img_features,            
-    #     labels= test_labels,                     
-    #     key_attrs= test_key_attrs,               
-    #     key_attr_values= key_attr_values,   
-    #     p4 = -1,
-    # )
+    tokenizer = BertTokenizer.from_pretrained(opt.tokenizer_path)    
+ 
     print('color_set' ,len(color_set))
     train_dataset = PreDataset_v2(
         tokenizer = tokenizer ,
@@ -137,7 +110,6 @@ def train(opt):
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=0.15)
 
-    # DataLoaders creation:
     train_dataloader = DataLoader(train_dataset , shuffle=True , collate_fn = data_collator , batch_size = opt.batch_size, num_workers=opt.num_workers)
     test_dataloader = DataLoader(test_dataset , shuffle=False , collate_fn = data_collator , batch_size = opt.batch_size , num_workers=opt.num_workers)
 
@@ -166,8 +138,8 @@ def train(opt):
             token_type_ids = batch['token_type_ids'].to(device)                 # shape[batch_size, seq_len] 
             visual_embeds = batch['visual_embeds'].to(device)                   # shape[batch_size, 1 ,2048]      
             visual_attention_mask = batch['visual_attention_mask'].to(device)   # shape[batch_size, 1]      
-            is_pared = batch['sentence_image_labels'].to(device)                # shape[batch_size, 1]      是否图文匹配
-            true_mlm_text = batch['labels'].to(device)                          # shape[batch_size, seq_len]   真实文本的标签
+            is_pared = batch['sentence_image_labels'].to(device)                # shape[batch_size, 1]      
+            true_mlm_text = batch['labels'].to(device)                          # shape[batch_size, seq_len]   
             output_dict = pretrain_vilbert(
                 input_ids = input_ids , 
                 token_type_ids = token_type_ids, 
@@ -193,8 +165,8 @@ def train(opt):
                 token_type_ids = batch['token_type_ids'].to(device)                 # shape[batch_size, seq_len] 
                 visual_embeds = batch['visual_embeds'].to(device)                   # shape[batch_size, 1 ,2048]      
                 visual_attention_mask = batch['visual_attention_mask'].to(device)   # shape[batch_size, 1]      
-                is_pared = batch['sentence_image_labels'].to(device)                # shape[batch_size, 1]      是否图文匹配
-                true_mlm_text = batch['labels'].to(device)                          # shape[batch_size, seq_len]   真实文本的标签
+                is_pared = batch['sentence_image_labels'].to(device)                # shape[batch_size, 1]     
+                true_mlm_text = batch['labels'].to(device)                          # shape[batch_size, seq_len]   
                 output_dict = pretrain_vilbert(
                     input_ids = input_ids , 
                     token_type_ids = token_type_ids, 
@@ -217,7 +189,6 @@ def train(opt):
         record_epoch_arr.append([ correct_rate, test_mlm_losses , test_match_losses ])
         
         using_time = (time.time() - since)  /60
-        # 选择testloss最小的epoch保存模型
         current_loss , is_save_model = test_match_losses + test_mlm_losses , 0
         if current_loss < min_loss:
             min_loss = current_loss
@@ -225,21 +196,18 @@ def train(opt):
             save_model(pretrain_vilbert , tokenizer , opt)
         print('Epoch %d (t %.2f min) correct_rate %.6f mlm_l %.6f match_l %.6f SaveMode %d.'%(epoch,using_time, correct_rate,test_mlm_losses,test_match_losses,is_save_model))
 
-    # 保存模型保存记录结果
     strings = time.strftime('%Y,%m,%d,%H,%M,%S')
     t = strings.split(',')
     number = [int(i) for i in t]
     dir_path = os.path.join(opt.output_root)
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
-    # 保存训练记录
     full_path = os.path.join(dir_path,'static-%02d%02d.npy'%(number[3],number[4]))
     np.save(full_path,record_epoch_arr)
 
     write_opt(opt)
 
 def write_opt(opt):
-    # 写入opt文件
     params = [attr for attr in dir(opt) if not attr.startswith('_')]
     content = ''
     for param in params:
