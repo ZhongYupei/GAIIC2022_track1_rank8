@@ -153,17 +153,17 @@ pytorch版本
 	|--- README.md 
 	|--- data
 		|--- fine_data_sample.json 				# 样例数据集，500个case
-	|--- color.txt  							# 颜色词表
-	|--- vocab.txt 								# 字典
+	|--- coor.txt  							# 颜色词表
+	|--- vocab.txt 							# 字典
 	|--- jeiba_userdict.txt 					# jieba分词词典
-	|--- datasets.py 							# dataset
-	|--- helper.py 								# 辅助工具
-	|--- lxmert.py 								# model lxmert
-	|--- vilt.py 								# model vilt
-	|--- vilbert.py 							# model vilbert
+	|--- datasets.py 						# dataset
+	|--- helper.py 							# 辅助工具
+	|--- lxmert.py 							# model lxmert
+	|--- vilt.py 							# model vilt
+	|--- vilbert.py 						# model vilbert
 	|--- pretrain_lxmert.py 					# lxmert pretrain
 	|--- finetune_lxmert.py 					# lxmert finetune
-	|--- finetune_lxmert_kfold.py 				# lxmert finetune kfold
+	|--- finetune_lxmert_kfold.py 					# lxmert finetune kfold
 	|--- pretrain_vilt.py 						# vilt pretrain
 	|--- finetune_vilt.py 						# vilt finetune
 	|--- pretrain_vilbert.py 					# vilbert pretrain
